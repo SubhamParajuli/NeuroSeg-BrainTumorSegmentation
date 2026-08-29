@@ -24,7 +24,7 @@ PLOT_DIR = Path("outputs/plots")
 
 IMAGE_SIZE = 256
 BATCH_SIZE = 8
-NUM_EPOCHS = 1      #number of epochs
+NUM_EPOCHS = 20     #number of epochs
 
 LEARNING_RATE = 1e-3
 WEIGHT_DECAY = 1e-4

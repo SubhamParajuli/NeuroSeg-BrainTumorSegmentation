@@ -10,3 +10,4 @@ wheels/
 .venv
 kaggle_3m
 lgg-mri-segmentation
+outputs/checkpoints
