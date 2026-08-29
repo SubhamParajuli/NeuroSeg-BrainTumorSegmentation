@@ -11,6 +11,10 @@ import tifffile
 from brain_seg.dataset import get_val_transform
 from brain_seg.model import UNet
 
+import base64
+import time
+
+from fastapi.responses import JSONResponse
 
 # --------------------------------------------------
 # Configuration
@@ -141,19 +145,21 @@ def health():
 async def predict(
     file: UploadFile = File(...),
 ):
-
     if not file.content_type.startswith("image/"):
-
         raise HTTPException(
             status_code=400,
             detail="Uploaded file must be an image.",
         )
 
     try:
+        start_time = time.perf_counter()
 
         contents = await file.read()
 
-        # Read TIFF exactly like the training dataset
+        # --------------------------------------------------
+        # Read image
+        # --------------------------------------------------
+
         image = tifffile.imread(
             BytesIO(contents)
         )
@@ -170,7 +176,12 @@ async def predict(
 
         image = image.astype(np.uint8)
 
-        # EXACT same validation transform
+        original_image = image.copy()
+
+        # --------------------------------------------------
+        # Same preprocessing as validation
+        # --------------------------------------------------
+
         transformed = transform(
             image=image
         )
@@ -180,6 +191,7 @@ async def predict(
             .unsqueeze(0)
             .to(device)
         )
+
         # --------------------------------------------------
         # Inference
         # --------------------------------------------------
@@ -197,7 +209,7 @@ async def predict(
             ).float()
 
         # --------------------------------------------------
-        # Convert prediction to PNG
+        # Convert mask
         # --------------------------------------------------
 
         mask = (
@@ -206,23 +218,100 @@ async def predict(
             .cpu()
             .numpy()
             .astype(np.uint8)
-            * 255
         )
+
+        # --------------------------------------------------
+        # Tumor detection
+        # --------------------------------------------------
+
+        tumor_pixels = int(
+            mask.sum()
+        )
+
+        total_pixels = int(
+            mask.size
+        )
+
+        tumor_detected = (
+            tumor_pixels > 0
+        )
+
+        tumor_percentage = (
+            tumor_pixels
+            / total_pixels
+            * 100
+        )
+
+        # --------------------------------------------------
+        # Resize original image to match mask
+        # --------------------------------------------------
+
+        original_pil = Image.fromarray(
+            original_image
+        )
+
+        original_pil = original_pil.resize(
+            (IMAGE_SIZE, IMAGE_SIZE)
+        )
+
+        original_array = np.array(
+            original_pil
+        )
+
+        # --------------------------------------------------
+        # Create overlay
+        # --------------------------------------------------
+
+        overlay = original_array.copy()
+
+        # Highlight predicted tumor
+        # using a red overlay
+        overlay[mask == 1] = (
+            overlay[mask == 1] * 0.4
+            + np.array([255, 0, 0]) * 0.6
+        ).astype(np.uint8)
+
+        # --------------------------------------------------
+        # Convert overlay to PNG
+        # --------------------------------------------------
 
         output = BytesIO()
 
         Image.fromarray(
-            mask
+            overlay
         ).save(
             output,
             format="PNG",
         )
 
-        output.seek(0)
+        image_base64 = base64.b64encode(
+            output.getvalue()
+        ).decode("utf-8")
 
-        return Response(
-            content=output.getvalue(),
-            media_type="image/png",
+        inference_time = (
+            time.perf_counter()
+            - start_time
+        )
+
+        # --------------------------------------------------
+        # JSON response
+        # --------------------------------------------------
+
+        return JSONResponse(
+            content={
+                "tumor_detected": tumor_detected,
+                "tumor_area_pixels": tumor_pixels,
+                "tumor_percentage": round(
+                    tumor_percentage,
+                    2,
+                ),
+                "inference_time_ms": round(
+                    inference_time * 1000,
+                    2,
+                ),
+                "threshold": THRESHOLD,
+                "overlay": image_base64,
+            }
         )
 
     except Exception as exc:
