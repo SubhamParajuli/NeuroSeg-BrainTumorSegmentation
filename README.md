@@ -1,45 +1,24 @@
 # NeuroSeg - Brain Tumor Segmentation
 
-NeuroSeg is a brain MRI tumor segmentation project built with PyTorch, FastAPI, and Streamlit. It takes a brain MRI scan as input, runs a ResNet18-based U-Net model, and returns a binary segmentation mask that highlights the predicted tumor region.
-
-This repository is designed to be easy to understand, train, evaluate, and run locally. It includes:
-
-- A segmentation model implemented in PyTorch
-- A training pipeline with augmentations, checkpointing, and MLflow logging
-- A FastAPI inference service
-- A Streamlit dashboard for interactive demo and visualization
-- Utility scripts for evaluation, plotting, dataset checks, and threshold tuning
+NeuroSeg is a brain MRI tumor segmentation project built with PyTorch, FastAPI, and Streamlit. It uses a ResNet18 encoder with a U-Net style decoder to highlight tumor regions on MRI scans.
 
 > Important: this is a research and educational project only. It is not a medical diagnostic tool.
 
-## What the project does
+## ResNet18-U-Net Structure
 
-Given a brain MRI image, NeuroSeg:
-
-1. Preprocesses the image to a fixed `256 x 256` input size
-2. Runs the image through a `ResNet18-UNet` segmentation model
-3. Converts model output logits into a probability mask using a sigmoid activation
-4. Applies a threshold of `0.60` to create a binary tumor mask
-5. Overlays the predicted mask on the original MRI scan
-6. Returns metrics such as tumor area, tumor pixel count, and inference time
-
-The dashboard in `app.py` lets you upload an MRI file and visually inspect the prediction.
-
-## Model architecture
-
-The model used in this project is a hybrid encoder-decoder segmentation network:
+At the core of NeuroSeg is a hybrid segmentation network:
 
 - Encoder: `ResNet18` from `torchvision`
-- Decoder: custom U-Net style decoder blocks with skip connections
-- Output: a single-channel binary segmentation map
-- Final activation during inference: sigmoid + thresholding
+- Decoder: custom U-Net style blocks with skip connections
+- Output: single-channel binary mask
+- Inference step: sigmoid activation followed by thresholding at `0.60`
 
-### Why this architecture
+### Why this structure
 
-- `ResNet18` gives a strong feature extractor with a lightweight backbone
-- Skip connections preserve spatial detail, which is important for segmentation
-- The decoder reconstructs a dense pixel-level mask from compressed features
-- The binary output keeps the task focused on tumor vs background
+- `ResNet18` gives a strong and efficient feature extractor
+- Skip connections preserve spatial detail for pixel-level segmentation
+- The decoder reconstructs the mask from compressed encoder features
+- Binary output keeps the task focused on tumor vs background
 
 ### Architecture flow
 
@@ -68,6 +47,35 @@ The model follows the standard encoder-decoder progression:
   - `[B, 512, 8, 8]`
 - Decoder progressively upsamples and merges encoder features
 - Output: `[B, 1, 256, 256]`
+
+## Project snapshots
+
+The screenshots below are from the actual NeuroSeg interface and prediction flow.
+
+### Dashboard
+
+![NeuroSeg dashboard](assets/neuroseg-dashboard.png)
+
+### Tumor detected example
+
+![NeuroSeg positive prediction](assets/neuroseg-result-positive.png)
+
+### No tumor detected example
+
+![NeuroSeg negative prediction](assets/neuroseg-result-negative.png)
+
+## What the project does
+
+Given a brain MRI image, NeuroSeg:
+
+1. Preprocesses the image to a fixed `256 x 256` input size
+2. Runs the image through the `ResNet18-UNet` segmentation model
+3. Converts model output logits into a probability mask using a sigmoid activation
+4. Applies a threshold of `0.60` to create a binary tumor mask
+5. Overlays the predicted mask on the original MRI scan
+6. Returns metrics such as tumor area, tumor pixel count, and inference time
+
+The dashboard in `app.py` lets you upload an MRI file and visually inspect the prediction.
 
 ## Project structure
 
@@ -400,4 +408,3 @@ The project automatically falls back to CPU. It will still run, but inference an
 ## License
 
 Add your preferred license here if the project will be shared publicly.
-
