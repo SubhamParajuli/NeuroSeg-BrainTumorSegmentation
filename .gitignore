@@ -11,3 +11,8 @@ wheels/
 kaggle_3m
 lgg-mri-segmentation
 outputs/checkpoints
+outputs/evaluation
+outputs/plots
+outputs/predictions
+mlruns/
+mlflow.db
